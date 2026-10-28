@@ -1,0 +1,1787 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETERNIT ROTERIZADOR</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet Draw CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <!-- SheetJS para ler Excel/CSV -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #581c34;
+            --primary-hover: #451427;
+            --accent-color: #0284c7;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .navbar {
+            background-color: #ffffff;
+            display: flex;
+            justify-content: center;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .nav-tab {
+            padding: 16px 28px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            color: #64748b;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .nav-tab:hover { color: var(--primary-color); }
+        .nav-tab.active { color: var(--primary-color); border-bottom: 3px solid var(--primary-color); }
+
+        .container {
+            max-width: 1480px;
+            margin: 15px auto;
+            padding: 0 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 600;
+            font-size: 11px;
+            color: #475569;
+        }
+
+        select, input[type="file"], input[type="text"], input[type="date"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            background-color: #ffffff;
+            color: #334155;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        select:focus, input[type="text"]:focus, input[type="date"]:focus { border-color: var(--primary-color); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .map-container {
+            position: relative;
+            width: 100%;
+            height: 820px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        #map { width: 100%; height: 100%; z-index: 1; }
+
+        .map-top-bar {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(8px);
+            padding: 12px 18px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid var(--border-color);
+            gap: 15px;
+            flex-wrap: wrap;
+            transition: all 0.3s ease;
+        }
+        .map-top-bar.recolhido {
+            transform: translateY(-120%);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .map-floating-controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 1001;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        .btn-icon-only {
+            background-color: #ffffff;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+            width: 44px;
+            height: 44px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-icon-only:hover { background-color: #fdf2f8; transform: scale(1.05); }
+        .btn-icon-only.ativo { background-color: #f43f5e; color: white; border-color: #f43f5e; }
+
+        .search-expandable-wrapper {
+            position: absolute;
+            top: 260px;
+            left: 15px;
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            background: #ffffff;
+            border: 2px solid var(--primary-color);
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            width: 44px;
+            height: 44px;
+            overflow: hidden;
+            transition: width 0.3s ease, box-shadow 0.3s ease;
+        }
+        .search-expandable-wrapper:hover,
+        .search-expandable-wrapper:focus-within {
+            width: 260px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+        }
+        .search-expandable-icon {
+            min-width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: var(--primary-color);
+            cursor: pointer;
+            background: #ffffff;
+        }
+        .search-expandable-input {
+            border: none !important;
+            background: transparent !important;
+            font-size: 13px;
+            padding: 0 10px 0 0;
+            width: 210px;
+            outline: none;
+            color: var(--text-color);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .map-floating-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            padding: 14px 20px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .map-actions-group { display: flex; gap: 10px; align-items: center; }
+
+        .btn-cancelar-selecao {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);
+            display: none;
+        }
+        .btn-cancelar-selecao:hover { background-color: #dc2626; }
+
+        .btn-fechar-rota {
+            background-color: var(--success-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+        }
+        .btn-fechar-rota:hover { background-color: #059669; }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        th, td {
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 14px;
+            text-align: left;
+        }
+
+        th { background-color: #f1f5f9; color: #334155; font-weight: 600; }
+        tr.selecionado-tabela td { background-color: #fdf2f8 !important; font-weight: 600; }
+        tr:hover td { background-color: #f8fafc; }
+
+        .cluster-marcador-container {
+            position: relative;
+            width: 44px;
+            height: 44px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .cluster-marcador-container:hover { transform: scale(1.15); }
+
+        .cluster-circulo-principal {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: 2.5px solid #ffffff;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 10.5px;
+            font-family: 'Inter', sans-serif;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            text-align: center;
+            padding: 1px;
+            box-sizing: border-box;
+        }
+
+        .cluster-badge-qtd {
+            position: absolute;
+            top: -3px;
+            right: -2px;
+            background-color: #ef4444;
+            color: white;
+            font-size: 9.5px;
+            font-weight: bold;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            z-index: 5;
+        }
+
+        .cluster-marcador-container.selecionado .cluster-circulo-principal {
+            box-shadow: 0 0 12px rgba(244, 63, 94, 0.9);
+            border-color: #ffe4e6;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            width: 700px;
+            max-width: 90%;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .modal-header h3 { margin: 0; color: var(--primary-color); }
+        .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b; }
+
+        .btn-desfazer {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .btn-desfazer:hover { background-color: #dc2626; }
+
+        .btn-detalhes {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 4px;
+        }
+        .btn-detalhes:hover { background-color: #0284c7; }
+
+        .btn-pdf {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 4px;
+        }
+        .btn-pdf:hover { background-color: var(--primary-hover); }
+
+        .badge-carregada {
+            background-color: #10b981;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+            margin-left: 8px;
+        }
+
+        .detalhes-rota-linha { display: none; background-color: #f8fafc; }
+        .detalhes-rota-linha.ativo { display: table-row; }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <div class="nav-tab" onclick="switchTab('tabelas', this)">TABELAS</div>
+        <div class="nav-tab active" onclick="switchTab('mapa', this)">ETERNIT ROTERIZADOR</div>
+        <div class="nav-tab" onclick="switchTab('planejamentos', this)">PLANEJAMENTOS</div>
+    </div>
+
+    <div class="container">
+
+        <!-- ABA MAPA -->
+        <div id="tab-mapa" class="tab-content active">
+            <div class="map-container">
+                <div id="map"></div>
+
+                <!-- BUSCA EXPANSÍVEL -->
+                <div class="search-expandable-wrapper" title="Pesquisar cidade, cliente, pedido...">
+                    <div class="search-expandable-icon">🔍</div>
+                    <input type="text" id="input-busca-global" class="search-expandable-input" placeholder="Filtrar cidade, cliente..." onkeyup="filtrarMapaGlobal(this.value)">
+                </div>
+
+                <!-- PAINEL SUPERIOR RECOLHÍVEL -->
+                <div id="map-top-bar" class="map-top-bar">
+                    <div style="flex: 1; min-width: 240px;">
+                        <label for="fabrica-select">Fábrica de Origem:</label>
+                        <select id="fabrica-select" onchange="atualizarOrigem()">
+                            <option value="Hortolandia" data-lat="-22.8903" data-lng="-47.2244" selected>ETERNIT HORTOLÂNDIA-SP</option>
+                            <option value="Rio de Janeiro" data-lat="-22.8462" data-lng="-43.3441">ETERNIT RIO DE JANEIRO-RJ</option>
+                            <option value="Colombo" data-lat="-25.3215" data-lng="-49.1950">ETERNIT COLOMBO-PR</option>
+                            <option value="Goiania" data-lat="-16.6864" data-lng="-49.3875">ETERNIT GOIÂNIA-GO</option>
+                            <option value="Caucaia" data-lat="-3.7297" data-lng="-38.6558">ETERNIT CAUCAIA-CE</option>
+                        </select>
+                    </div>
+                    <div style="width: 280px;">
+                        <label for="excel-file">Atualizar / Importar Planilha:</label>
+                        <input type="file" id="excel-file" accept=".xlsx, .xls, .csv" onchange="processarArquivo(event)">
+                    </div>
+                    <div style="display: flex; gap: 6px; align-items: flex-end;">
+                        <button onclick="exportarBackup()" title="Salvar Backup Rotas" style="background:#0284c7; color:white; border:none; padding:8px 12px; border-radius:8px; font-size:12px; cursor:pointer; font-weight:600;">💾 Salvar</button>
+                        <label for="input-backup" title="Carregar Backup" style="display:inline-block; background:#10b981; color:white; padding:8px 12px; border-radius:8px; font-size:12px; cursor:pointer; font-weight:600; margin:0;">📂 Carregar</label>
+                        <input type="file" id="input-backup" accept=".json" style="display:none;" onchange="importarBackup(event)">
+                    </div>
+                    <div style="width: 100%; font-size: 12px; font-weight: 600; color: var(--primary-color);" id="status-carregamento">
+                        Aguardando importação de planilha...
+                    </div>
+                </div>
+
+                <!-- BOTÕES FLUTUANTES -->
+                <div class="map-floating-controls">
+                    <button id="btn-toggle-painel" class="btn-icon-only" onclick="togglePainelSuperior()" title="Ocultar/Exibir Painel Superior">⚙️</button>
+                    <button id="btn-toggle-manual" class="btn-icon-only ativo" onclick="toggleModoManual()" title="Seleção Manual (ON/OFF)">👆</button>
+                    <button id="btn-ativar-laco" class="btn-icon-only" onclick="toggleLacoLivre()" title="Ativar Laço Livre">✏️</button>
+                </div>
+
+                <!-- BARRA INFERIOR -->
+                <div class="map-floating-bar">
+                    <div id="detalhes-rota-selecionada" style="font-size: 13px; font-weight: 500; color: #334155;">
+                        Clique nos marcadores no mapa ou use o Laço Livre para selecionar a rota.
+                    </div>
+                    <div class="map-actions-group">
+                        <button id="btn-cancelar-selecao" class="btn-cancelar-selecao" onclick="cancelarSelecaoAtual()">❌ Cancelar Seleção</button>
+                        <button id="btn-abrir-modal" class="btn-fechar-rota" onclick="abrirModalVeiculo()" disabled style="opacity: 0.5; cursor: not-allowed;">📦 Fechar Rota</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA TABELAS -->
+        <div id="tab-tabelas" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                    <h3 style="margin: 0;">📋 Dados da Carteira de Pedidos Ativa</h3>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <label for="filtro-precisao" style="margin: 0;">Filtrar Precisão:</label>
+                        <select id="filtro-precisao" onchange="filtrarTabelaTabelas()" style="width: 200px;">
+                            <option value="todos">Todos os registros</option>
+                            <option value="aproximada">⚠️ Apenas "Precisão: aproximada"</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="overflow-x: auto; max-height: 650px;">
+                    <table id="tabela-dados">
+                        <thead>
+                            <tr>
+                                <th>Pedido (K)</th>
+                                <th>Cliente (L)</th>
+                                <th>Razão Social (M)</th>
+                                <th>Logradouro (C)</th>
+                                <th>CEP (D)</th>
+                                <th>Cidade (E) / UF (Q)</th>
+                                <th>Qtd (H)</th>
+                                <th>Dias na Carteira (U)</th>
+                                <th>Ajustar Localização (Lat / Lng)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="9" style="text-align: center; color: #94a3b8;">Nenhum arquivo carregado.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA PLANEJAMENTOS -->
+        <div id="tab-planejamentos" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 15px;">
+                    <h3 id="titulo-planejamento-fabrica" style="margin: 0;">📅 Planejamento de Cargas e Rotas Fechadas</h3>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label for="filtro-data-calendario" style="margin: 0; white-space: nowrap;">Filtrar por Data:</label>
+                        <input type="date" id="filtro-data-calendario" onchange="atualizarTabelaPlanejamentos()" style="width: 170px;">
+                        <button onclick="limparFiltroData()" style="background:#e2e8f0; border:none; padding:7px 10px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600;">Limpar Data</button>
+                    </div>
+                </div>
+                <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">Exibindo rotas fechadas exclusivamente para a fábrica selecionada no topo.</p>
+                <div style="overflow-x: auto;">
+                    <table id="tabela-planejamentos">
+                        <thead>
+                            <tr>
+                                <th>ID Rota</th>
+                                <th>Fábrica Origem</th>
+                                <th>Destino Final</th>
+                                <th>Veículo / Placa</th>
+                                <th>Qtd. Pedidos</th>
+                                <th>Volume (m³)</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="7" style="text-align: center; color: #94a3b8;">Nenhuma rota fechada para esta fábrica até o momento.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MODAL DE SELEÇÃO DE VEÍCULO -->
+    <div id="modal-veiculo" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Seleção de Veículo para Fechamento de Rota</h3>
+                <button class="modal-close" onclick="fecharModalVeiculo()">&times;</button>
+            </div>
+            <div>
+                <label>Tipo de Veículo:</label>
+                <select id="modal-tipo-caminhao" onchange="atualizarModalCapacidade()">
+                    <option value="11500" data-tipo="TOCO - 11500">TOCO - 11500 (Max: 11.500 m³)</option>
+                    <option value="12500" data-tipo="TRUCK - 12500">TRUCK - 12500 (Max: 12.500 m³)</option>
+                    <option value="14500" data-tipo="TRUCK - 14500" selected>TRUCK - 14500 (Max: 14.500 m³)</option>
+                    <option value="18500" data-tipo="BITRUCK 18500">BITRUCK 18500 (Max: 18.500 m³)</option>
+                    <option value="25000" data-tipo="CARRETA TOCO - 25000">CARRETA TOCO - 25.000 m³</option>
+                    <option value="32000" data-tipo="CARRETA LS - 32000">CARRETA LS - 32.000 m³</option>
+                </select>
+            </div>
+            <div style="margin-top: 15px;">
+                <label>Placa do Veículo:</label>
+                <select id="modal-placa-caminhao">
+                    <option value="AAA-1234">AAA-1234 (Disponível)</option>
+                    <option value="AAA-1235">AAA-1235 (Disponível)</option>
+                    <option value="AAA-1236">AAA-1236 (Disponível)</option>
+                    <option value="AAA-1265">AAA-1265 (Disponível)</option>
+                    <option value="BBB-9876">BBB-9876 (Disponível)</option>
+                </select>
+            </div>
+            <div style="margin-top: 15px;">
+                <label for="modal-data-carregamento">Data de Carregamento:</label>
+                <input type="date" id="modal-data-carregamento">
+            </div>
+            <div style="margin-top: 20px; background: #f8fafc; padding: 12px; border-radius: 8px; font-size: 13px;">
+                <div>Volume da Rota: <b id="modal-lbl-volume">0 m³</b></div>
+                <div id="modal-status-capacidade" style="margin-top: 4px; font-weight: 600;"></div>
+            </div>
+            <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button onclick="fecharModalVeiculo()" style="background: #e2e8f0; border: none; padding: 9px 16px; border-radius: 6px; font-weight: 600; cursor: pointer;">Cancelar</button>
+                <button onclick="confirmarFechamentoRota()" style="background: var(--primary-color); color: white; border: none; padding: 9px 18px; border-radius: 6px; font-weight: 600; cursor: pointer;">Confirmar Fechamento</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet Draw JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script>
+        let map = L.map('map', {zoomControl: false}).setView([-15.7801, -47.9292], 5);
+        L.control.zoom({position: 'topleft'}).addTo(map);
+
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19,
+            attribution: 'Eternit Roterizador & Esri'
+        }).addTo(map);
+
+        let markersLayer = L.layerGroup().addTo(map);
+        let drawnItems = new L.FeatureGroup().addTo(map);
+        let rotaLinhaLayer = new L.FeatureGroup().addTo(map);
+        map.addLayer(drawnItems);
+
+        let origemMarker = null;
+        let listaGlobalClusters = []; 
+        let clustersSelecionadosAtuais = [];
+        let rotasPlanejadasHistorico = [];
+        let pedidosRoteirizadosGlobal = new Set();
+        let dadosBrutosUltimaPlanilha = null;
+        let locaisManuaisSalvos = {};
+        
+        let lacoLivreAtivo = false;
+        let modoManualAtivo = true;
+        let painelRecolhido = false;
+        let pontosDesenhoLivre = [];
+        let linhaDesenhoLivre = null;
+
+        document.addEventListener("DOMContentLoaded", function() {
+            carregarDadosSalvos();
+        });
+
+        let drawControl = new L.Control.Draw({
+            edit: { featureGroup: drawnItems },
+            draw: {
+                polygon: { allowIntersection: false, showArea: true, shapeOptions: { color: '#581c34', fillColor: '#581c34', fillOpacity: 0.2 } },
+                rectangle: { shapeOptions: { color: '#581c34', fillColor: '#581c34', fillOpacity: 0.2 } },
+                circle: false, marker: false, polyline: false, circlemarker: false
+            }
+        });
+        map.addControl(drawControl);
+
+        map.on(L.Draw.Event.CREATED, function (event) {
+            let layer = event.layer;
+            drawnItems.clearLayers();
+            drawnItems.addLayer(layer);
+            avaliarClustersNaArea(layer);
+            setTimeout(() => { drawnItems.clearLayers(); }, 300);
+        });
+
+        function togglePainelSuperior() {
+            painelRecolhido = !painelRecolhido;
+            const bar = document.getElementById('map-top-bar');
+            const btn = document.getElementById('btn-toggle-painel');
+            if (painelRecolhido) {
+                bar.classList.add('recolhido');
+                btn.classList.add('ativo');
+                btn.title = "Exibir Painel Superior";
+            } else {
+                bar.classList.remove('recolhido');
+                btn.classList.remove('ativo');
+                btn.title = "Ocultar Painel Superior";
+            }
+        }
+
+        function salvarNoLocalStorage() {
+            try {
+                localStorage.setItem('eternit_rotas_historico', JSON.stringify(rotasPlanejadasHistorico));
+                localStorage.setItem('eternit_pedidos_roteirizados', JSON.stringify(Array.from(pedidosRoteirizadosGlobal)));
+                localStorage.setItem('eternit_locais_manuais', JSON.stringify(locaisManuaisSalvos));
+            } catch (e) {
+                console.error("Erro ao salvar no localStorage", e);
+            }
+        }
+
+        function carregarDadosSalvos() {
+            try {
+                let savedHistorico = localStorage.getItem('eternit_rotas_historico');
+                let savedPedidos = localStorage.getItem('eternit_pedidos_roteirizados');
+                let savedLocais = localStorage.getItem('eternit_locais_manuais');
+
+                if (savedHistorico) rotasPlanejadasHistorico = JSON.parse(savedHistorico);
+                if (savedPedidos) pedidosRoteirizadosGlobal = new Set(JSON.parse(savedPedidos));
+                if (savedLocais) locaisManuaisSalvos = JSON.parse(savedLocais);
+            } catch (e) {
+                console.error("Erro ao carregar dados salvos", e);
+            }
+            atualizarTabelaPlanejamentos();
+        }
+
+        function exportarBackup() {
+            let dados = {
+                historico: rotasPlanejadasHistorico,
+                roteirizados: Array.from(pedidosRoteirizadosGlobal),
+                manuais: locaisManuaisSalvos
+            };
+            let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dados));
+            let downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "eternit_backup_rotas.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importarBackup(e) {
+            let file = e.target.files[0];
+            if (!file) return;
+            let reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    let dados = JSON.parse(evt.target.result);
+                    rotasPlanejadasHistorico = dados.historico || [];
+                    pedidosRoteirizadosGlobal = new Set(dados.roteirizados || []);
+                    locaisManuaisSalvos = dados.manuais || {};
+                    salvarNoLocalStorage();
+                    atualizarTabelaPlanejamentos();
+                    if (dadosBrutosUltimaPlanilha) {
+                        processarLinhasPlanilha(dadosBrutosUltimaPlanilha);
+                    }
+                    alert("✅ Backup carregado com sucesso!");
+                } catch(err) {
+                    alert("Erro ao ler arquivo de backup.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function toggleModoManual() {
+            modoManualAtivo = !modoManualAtivo;
+            const btn = document.getElementById('btn-toggle-manual');
+            if (modoManualAtivo) {
+                btn.classList.add('ativo');
+            } else {
+                btn.classList.remove('ativo');
+            }
+        }
+
+        function toggleLacoLivre() {
+            lacoLivreAtivo = !lacoLivreAtivo;
+            const btn = document.getElementById('btn-ativar-laco');
+            if (lacoLivreAtivo) {
+                btn.classList.add('ativo');
+                map.dragging.disable();
+            } else {
+                btn.classList.remove('ativo');
+                map.dragging.enable();
+            }
+        }
+
+        map.on('mousedown', function(e) {
+            if (!lacoLivreAtivo) return;
+            pontosDesenhoLivre = [e.latlng];
+            if (linhaDesenhoLivre) map.removeLayer(linhaDesenhoLivre);
+            linhaDesenhoLivre = L.polyline(pontosDesenhoLivre, {color: '#581c34', weight: 4}).addTo(map);
+        });
+
+        map.on('mousemove', function(e) {
+            if (!lacoLivreAtivo || pontosDesenhoLivre.length === 0) return;
+            pontosDesenhoLivre.push(e.latlng);
+            linhaDesenhoLivre.setLatLngs(pontosDesenhoLivre);
+        });
+
+        map.on('mouseup', function(e) {
+            if (!lacoLivreAtivo || pontosDesenhoLivre.length === 0) return;
+            lacoLivreAtivo = false;
+            document.getElementById('btn-ativar-laco').classList.remove('ativo');
+            map.dragging.enable();
+
+            if (linhaDesenhoLivre) map.removeLayer(linhaDesenhoLivre);
+
+            if (pontosDesenhoLivre.length > 2) {
+                let polygon = L.polygon(pontosDesenhoLivre, {color: '#581c34', fillColor: '#581c34', fillOpacity: 0.25});
+                drawnItems.clearLayers();
+                drawnItems.addLayer(polygon);
+                avaliarClustersNaArea(polygon);
+                setTimeout(() => { drawnItems.clearLayers(); }, 300);
+            }
+            pontosDesenhoLivre = [];
+        });
+
+        function filtrarMapaGlobal(termo) {
+            let termoNorm = termo.toLowerCase().trim();
+            let boundsFiltrados = [];
+
+            listaGlobalClusters.forEach(cluster => {
+                let el = document.getElementById(`cluster-${cluster.id}`);
+                if (!el) return;
+
+                if (termoNorm === "") {
+                    cluster.marker.setOpacity(1.0);
+                    el.style.display = "flex";
+                } else {
+                    let match = cluster.clienteInfo.razaoSocial.toLowerCase().includes(termoNorm) ||
+                                cluster.clienteInfo.cidade.toLowerCase().includes(termoNorm) ||
+                                cluster.clienteInfo.idCliente.toLowerCase().includes(termoNorm) ||
+                                cluster.clienteInfo.logradouro.toLowerCase().includes(termoNorm) ||
+                                cluster.pedidos.some(p => p.pedido.toLowerCase().includes(termoNorm) || p.material.toLowerCase().includes(termoNorm));
+
+                    if (match) {
+                        cluster.marker.setOpacity(1.0);
+                        el.style.display = "flex";
+                        boundsFiltrados.push(cluster.latLng);
+                    } else {
+                        cluster.marker.setOpacity(0.2);
+                        el.style.display = "flex";
+                    }
+                }
+            });
+
+            if (termoNorm !== "" && boundsFiltrados.length > 0) {
+                map.fitBounds(L.latLngBounds(boundsFiltrados), { padding: [50, 50], maxZoom: 12 });
+            }
+        }
+
+        function alternarSelecaoClusterManual(cluster) {
+            if (cluster.pedidos.every(p => p.fechado)) return;
+
+            let index = clustersSelecionadosAtuais.findIndex(c => c.id === cluster.id);
+            if (index > -1) {
+                clustersSelecionadosAtuais.splice(index, 1);
+            } else {
+                clustersSelecionadosAtuais.push(cluster);
+            }
+
+            recalcularRotaEAtualizarInterface();
+        }
+
+        function cancelarSelecaoAtual() {
+            clustersSelecionadosAtuais.forEach(cluster => {
+                let elBolinha = document.getElementById(`cluster-${cluster.id}`);
+                if (elBolinha) elBolinha.classList.remove('selecionado');
+                cluster.pedidos.forEach(p => {
+                    let tr = document.getElementById(`tr-pedido-${p.pedido}`);
+                    if(tr) tr.classList.remove('selecionado-tabela');
+                });
+            });
+            clustersSelecionadosAtuais = [];
+            rotaLinhaLayer.clearLayers();
+            drawnItems.clearLayers();
+            document.getElementById('detalhes-rota-selecionada').innerText = 'Seleção cancelada. Clique em um cliente ou faça um laço novamente.';
+            document.getElementById('btn-cancelar-selecao').style.display = 'none';
+            let btnAbrir = document.getElementById('btn-abrir-modal');
+            btnAbrir.style.opacity = '0.5';
+            btnAbrir.style.cursor = 'not-allowed';
+            btnAbrir.disabled = true;
+        }
+
+        function atualizarOrigem() {
+            const select = document.getElementById('fabrica-select');
+            const option = select.options[select.selectedIndex];
+            const lat = parseFloat(option.getAttribute('data-lat'));
+            const lng = parseFloat(option.getAttribute('data-lng'));
+
+            if (origemMarker) map.removeLayer(origemMarker);
+            origemMarker = L.marker([lat, lng], { title: option.text }).addTo(map).bindPopup(`<b>Fábrica Eternit:</b><br>${option.text}`);
+            
+            atualizarTabelaPlanejamentos();
+        }
+        setTimeout(atualizarOrigem, 100);
+
+        function switchTab(tabId, element) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            element.classList.add('active');
+            if(tabId === 'mapa') setTimeout(() => { map.invalidateSize(); }, 200);
+            if(tabId === 'planejamentos') atualizarTabelaPlanejamentos();
+        }
+
+        function processarArquivo(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let rows = [];
+                    if (file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
+                        let text = e.target.result;
+                        let lines = text.split(/\r\n|\n/);
+                        rows = lines.map(line => line.split(';'));
+                    } else {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, {type: 'array'});
+                        rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
+                    }
+                    
+                    dadosBrutosUltimaPlanilha = rows;
+                    
+                    // NOVA REGRA: Verifica na importação se algum pedido fechado/roteirizado sumiu do arquivo novo.
+                    // Se sumiu, a rota é desfeita automaticamente para que o saldo/pedido retorne ao roteirizador.
+                    verificarPedidosRemovidosNoArquivo(rows);
+
+                    processarLinhasPlanilha(rows);
+
+                } catch (err) {
+                    console.error(err);
+                    alert("Erro ao processar o arquivo: " + err.message);
+                }
+            };
+
+            if (file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
+                reader.readAsText(file, 'ISO-8859-1');
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        // Função responsável por desfazer rotas automaticamente se os pedidos sumirem da planilha nova
+        function verificarPedidosRemovidosNoArquivo(rows) {
+            let pedidosNoArquivoNovo = new Set();
+            for (let i = 0; i < rows.length; i++) {
+                const r = rows[i];
+                if (!r || r.length < 17) continue;
+                const numPedido = (r[10] || '').toString().trim();
+                if (numPedido) pedidosNoArquivoNovo.add(numPedido);
+            }
+
+            let rotasParaDesfazer = [];
+            rotasPlanejadasHistorico.forEach(rota => {
+                let rotaTemPedidoAusente = false;
+                rota.clientes.forEach(c => {
+                    c.pedidos.forEach(p => {
+                        // Se o pedido estava numa rota fechada mas NÃO está mais presente na nova planilha importada
+                        if (!pedidosNoArquivoNovo.has(p.pedido)) {
+                            rotaTemPedidoAusente = true;
+                        }
+                    });
+                });
+                if (rotaTemPedidoAusente) {
+                    rotasParaDesfazer.push(rota.id);
+                }
+            });
+
+            if (rotasParaDesfazer.length > 0) {
+                rotasParaDesfazer.forEach(rotaId => {
+                    let index = rotasPlanejadasHistorico.findIndex(r => r.id === rotaId);
+                    if (index > -1) {
+                        let rotaRemovida = rotasPlanejadasHistorico[index];
+                        rotaRemovida.clientes.forEach(c => {
+                            c.pedidos.forEach(p => {
+                                pedidosRoteirizadosGlobal.delete(p.pedido);
+                            });
+                        });
+                        rotasPlanejadasHistorico.splice(index, 1);
+                    }
+                });
+                salvarNoLocalStorage();
+                atualizarTabelaPlanejamentos();
+                console.log(`🔄 Rotas desfeitas automaticamente por ausência de pedidos na nova planilha: ${rotasParaDesfazer.join(', ')}`);
+            }
+        }
+
+        function obterCorPorDias(dias) {
+            if (dias <= 3) return '#10b981';
+            if (dias <= 7) return '#f59e0b';
+            if (dias <= 15) return '#f97316';
+            if (dias <= 30) return '#ef4444';
+            return '#1e293b';
+        }
+
+        function calcularCoordenadasDiretasCEP(cepRaw) {
+            let num = parseInt(cepRaw.toString().replace(/\D/g, ''));
+            if (isNaN(num)) return { lat: -23.5505, lon: -46.6333 };
+
+            if (num >= 1000000 && num <= 19999999) {
+                let frac = (num - 1000000) / (19999999 - 1000000);
+                return { lat: -23.5505 + (frac * 3.5), lon: -46.6333 - (frac * 4.8) };
+            }
+            if (num >= 20000000 && num <= 28999999) {
+                let frac = (num - 20000000) / (28999999 - 20000000);
+                return { lat: -22.9068 + (frac * 1.5), lon: -43.1729 - (frac * 1.8) };
+            }
+            if (num >= 29000000 && num <= 29999999) {
+                let frac = (num - 29000000) / (29999999 - 29000000);
+                return { lat: -20.3155 + (frac * 2.2), lon: -40.3128 - (frac * 1.2) };
+            }
+            if (num >= 30000000 && num <= 39999999) {
+                let frac = (num - 30000000) / (39999999 - 30000000);
+                return { lat: -19.9167 + (frac * 4.5), lon: -43.9345 - (frac * 4.2) };
+            }
+            if (num >= 40000000 && num <= 48999999) {
+                let frac = (num - 40000000) / (48999999 - 40000000);
+                return { lat: -12.9777 + (frac * 3.5), lon: -38.5016 - (frac * 5.0) };
+            }
+            if (num >= 50000000 && num <= 56999999) {
+                let frac = (num - 50000000) / (56999999 - 50000000);
+                return { lat: -8.0476 + (frac * 1.2), lon: -34.8770 - (frac * 5.0) };
+            }
+            if (num >= 60000000 && num <= 63999999) {
+                let frac = (num - 60000000) / (63999999 - 60000000);
+                return { lat: -3.7319 + (frac * 3.0), lon: -38.5267 - (frac * 2.5) };
+            }
+            if (num >= 70000000 && num <= 76799999) {
+                if ((num >= 70000000 && num <= 72799999) || (num >= 73000000 && num <= 73699999)) {
+                    let fracDF = (num - 70000000) / (73699999 - 70000000);
+                    return { lat: -15.7801 + (fracDF * 0.3), lon: -47.9292 + (fracDF * 0.3) };
+                } else {
+                    let fracGO = (num - 72800000) / (76799999 - 72800000);
+                    return { lat: -16.6869 + (fracGO * 3.0), lon: -49.2648 - (fracGO * 2.5) };
+                }
+            }
+            if (num >= 80000000 && num <= 87999999) {
+                let frac = (num - 80000000) / (87999999 - 80000000);
+                return { lat: -25.4284 + (frac * 2.0), lon: -49.2733 - (frac * 4.5) };
+            }
+            if (num >= 88000000 && num <= 89999999) {
+                let frac = (num - 88000000) / (89999999 - 88000000);
+                return { lat: -27.5954 + (frac * 1.2), lon: -48.5480 - (frac * 4.0) };
+            }
+            if (num >= 90000000 && num <= 99999999) {
+                let frac = (num - 90000000) / (99999999 - 90000000);
+                return { lat: -30.0346 + (frac * 2.2), lon: -51.2177 - (frac * 5.0) };
+            }
+
+            return { lat: -23.5505, lon: -46.6333 };
+        }
+
+        const CACHE_GEO_KEY = 'roteirizador_geocache_v3';
+        let cacheGeo = {};
+        try { cacheGeo = JSON.parse(localStorage.getItem(CACHE_GEO_KEY) || '{}'); } catch (e) { cacheGeo = {}; }
+        const esperar = ms => new Promise(r => setTimeout(r, ms));
+
+        function expandirLogradouro(l) {
+            const mapa = { 'AV':'AVENIDA','R':'RUA','ROD':'RODOVIA','TV':'TRAVESSA','TRAV':'TRAVESSA','AL':'ALAMEDA','PC':'PRACA','PCA':'PRACA','EST':'ESTRADA','ESTR':'ESTRADA','LGO':'LARGO','VL':'VILA','CEL':'CORONEL','DR':'DOUTOR','PROF':'PROFESSOR','STA':'SANTA','STO':'SANTO','SR':'SENHOR','GAL':'GENERAL','PRES':'PRESIDENTE','ENG':'ENGENHEIRO','MAL':'MARECHAL','CAP':'CAPITAO' };
+            return l.replace(/[.,]/g,' ').split(/\s+/).filter(Boolean).map(w => mapa[w.toUpperCase()] || w).join(' ');
+        }
+
+        async function consultarNominatim(params) {
+            const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&' + new URLSearchParams(params).toString();
+            try {
+                const resp = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+                if (!resp.ok) return null;
+                const data = await resp.json();
+                await esperar(1100);
+                if (data && data.length) return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+            } catch (e) { await esperar(1100); }
+            return null;
+        }
+
+        let filaNominatim = Promise.resolve();
+        function nominatimNaFila(params) {
+            const p = filaNominatim.then(() => consultarNominatim(params));
+            filaNominatim = p.catch(() => null);
+            return p;
+        }
+
+        async function buscarJson(url, ms = 6000) {
+            const ctrl = new AbortController();
+            const t = setTimeout(() => ctrl.abort(), ms);
+            try { const r = await fetch(url, { signal: ctrl.signal }); return r.ok ? await r.json() : null; }
+            catch (e) { return null; } finally { clearTimeout(t); }
+        }
+
+        const normTxt = t => (t || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+        function distKm(a, b) {
+            const R = 6371, dLat = (b.lat - a.lat) * Math.PI / 180, dLon = (b.lon - a.lon) * Math.PI / 180;
+            const x = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180) * Math.cos(b.lat*Math.PI/180) * Math.sin(dLon/2)**2;
+            return 2 * R * Math.asin(Math.sqrt(x));
+        }
+        let timerCache = null;
+        function salvarCache() {
+            if (timerCache) return;
+            timerCache = setTimeout(() => { timerCache = null; try { localStorage.setItem(CACHE_GEO_KEY, JSON.stringify(cacheGeo)); } catch (e) {} }, 1500);
+        }
+
+        let municipiosPromise = null;
+        function carregarMunicipios() {
+            if (!municipiosPromise) {
+                const base = 'https://cdn.jsdelivr.net/gh/kelvins/municipios-brasileiros@main/json/';
+                municipiosPromise = Promise.all([buscarJson(base + 'municipios.json', 15000), buscarJson(base + 'estados.json', 15000)]).then(([mun, est]) => {
+                    const tab = {};
+                    if (!mun || !est) return tab;
+                    const ufPorCod = {}; est.forEach(e => ufPorCod[e.codigo_uf] = e.uf);
+                    mun.forEach(m => { tab[normTxt(m.nome) + '|' + ufPorCod[m.codigo_uf]] = { lat: m.latitude, lon: m.longitude }; });
+                    return tab;
+                });
+            }
+            return municipiosPromise;
+        }
+
+        const centrosPendentes = {};
+        function centroDaCidade(cidade, uf) {
+            if (!cidade) return Promise.resolve(null);
+            const k = 'CIDADE|' + normTxt(cidade) + '|' + normTxt(uf);
+            if (cacheGeo[k]) return Promise.resolve(cacheGeo[k]);
+            if (!centrosPendentes[k]) {
+                centrosPendentes[k] = carregarMunicipios().then(tab => {
+                    const r = tab[normTxt(cidade) + '|' + normTxt(uf)];
+                    if (r) { cacheGeo[k] = r; salvarCache(); return r; }
+                    return nominatimNaFila({ city: cidade, state: uf, country: 'Brasil' }).then(r => {
+                    if (r) { cacheGeo[k] = r; salvarCache(); }
+                    return r;
+                });
+                });
+            }
+            return centrosPendentes[k];
+        }
+        const RAIO_MAX_KM = 35;
+        function pontoValido(p, centro) {
+            if (!p || isNaN(p.lat) || isNaN(p.lon)) return false;
+            if (!centro) return true;
+            return distKm(p, centro) <= RAIO_MAX_KM;
+        }
+
+        async function coordenadasPorCEP(cep, cidade, uf) {
+            const k = 'CEP|' + cep;
+            if (cacheGeo[k]) return cacheGeo[k];
+            const ufN = normTxt(uf), cidN = normTxt(cidade);
+            const confere = (st, ci) => (!ufN || !st || normTxt(st) === ufN) && (!cidN || !ci || normTxt(ci) === cidN);
+            let res = null;
+            const pB = buscarJson('https://brasilapi.com.br/api/cep/v2/' + cep, 5000);
+            const a = await buscarJson('https://cep.awesomeapi.com.br/json/' + cep, 5000);
+            if (a && a.lat && a.lng && confere(a.state, a.city)) {
+                const geral = /000$/.test(cep);
+                res = { lat: parseFloat(a.lat), lon: parseFloat(a.lng), precisao: geral ? 'cidade' : 'cep' };
+            }
+            if (!res) {
+                const b = await pB;
+                const co = b && b.location && b.location.coordinates;
+                if (co && co.latitude && co.longitude && confere(b.state, b.city)) res = { lat: parseFloat(co.latitude), lon: parseFloat(co.longitude), precisao: 'cep' };
+            }
+            if (res && !isNaN(res.lat) && !isNaN(res.lon)) { cacheGeo[k] = res; salvarCache(); return res; }
+            return null;
+        }
+
+        async function geocodificarEndereco(c) {
+            const cepLimpo = (c.cep || '').replace(/\D/g, '').padStart(8, '0');
+            const centroP = centroDaCidade(c.cidade, c.uf);
+            let viaCep = null;
+            if (/^\d{8}$/.test(cepLimpo) && cepLimpo !== '00000000') viaCep = await coordenadasPorCEP(cepLimpo, c.cidade, c.uf);
+            const centro = await centroP;
+            if (viaCep && viaCep.precisao === 'cep' && pontoValido(viaCep, centro)) return viaCep;
+
+            const chave = `RUA|${normTxt(c.logradouro)}|${normTxt(c.bairro)}|${normTxt(c.cidade)}|${normTxt(c.uf)}`;
+            if (cacheGeo[chave]) return cacheGeo[chave];
+            const rua = expandirLogradouro(c.logradouro || '');
+            const tentativas = [];
+            if (rua && c.cidade) tentativas.push({ nivel: 'exata', p: { street: rua, city: c.cidade, state: c.uf, country: 'Brasil' } });
+            if (c.bairro && c.cidade) tentativas.push({ nivel: 'bairro', p: { q: `${c.bairro}, ${c.cidade} - ${c.uf}, Brasil` } });
+            for (const t of tentativas) {
+                const r = await nominatimNaFila(t.p);
+                if (r && pontoValido(r, centro)) {
+                    const res = { ...r, precisao: t.nivel };
+                    cacheGeo[chave] = res; salvarCache();
+                    return res;
+                }
+            }
+            if (viaCep && pontoValido(viaCep, centro)) return viaCep;
+            if (centro) return { ...centro, precisao: 'cidade' };
+            return { ...calcularCoordenadasDiretasCEP(c.cep), precisao: 'aproximada' };
+        }
+
+        async function geocodificarTodos(lista) {
+            const unicos = {}, ordem = [];
+            lista.forEach((c, i) => {
+                const k = [c.cep, c.logradouro, c.bairro, c.cidade, c.uf].map(normTxt).join('|');
+                if (!unicos[k]) { unicos[k] = []; ordem.push({ k, c }); }
+                unicos[k].push(i);
+            });
+            const resultados = new Array(lista.length);
+            carregarMunicipios();
+            const lu = ordem;
+            let prox = 0, feitos = 0;
+            const status = document.getElementById('status-carregamento');
+            async function trabalhador() {
+                while (prox < lu.length) {
+                    const u = lu[prox++];
+                    const r = await geocodificarEndereco(u.c);
+                    unicos[u.k].forEach(i => resultados[i] = r);
+                    feitos++;
+                    status.innerText = `⏳ Localizando endereços: ${feitos} de ${lu.length}...`;
+                }
+            }
+            await Promise.all(Array.from({ length: Math.min(25, lu.length) }, trabalhador));
+            try { localStorage.setItem(CACHE_GEO_KEY, JSON.stringify(cacheGeo)); } catch (e) {}
+            return resultados;
+        }
+
+        let globalListaClientesCache = [];
+
+        async function processarLinhasPlanilha(rows) {
+            markersLayer.clearLayers();
+            rotaLinhaLayer.clearLayers();
+            listaGlobalClusters = [];
+
+            let mapaClientesPorChave = {};
+            let countValidos = 0;
+            let countIgnorados = 0;
+
+            document.getElementById('status-carregamento').innerText = `⏳ Localizando endereços...`;
+
+            for (let i = 0; i < rows.length; i++) {
+                const r = rows[i];
+                if (!r || r.length < 17) continue;
+
+                const logradouro = (r[2] || '').trim();
+                const cep = (r[3] || '').trim();
+                const cidade = (r[4] || '').trim();
+                const bairro = (r[5] || '').trim();
+                const qtdStr = (r[7] || '0').toString().replace(',', '.');
+                const quantidade = parseFloat(qtdStr) || 0;
+                const numPedido = (r[10] || '').toString().trim();
+                const idCliente = (r[11] || '').trim();
+                const razaoSocial = (r[12] || '').trim();
+                const descMaterial = r[15] || '';
+                const ufEntrega = (r[16] || '').trim();
+                
+                const diasStr = (r[20] || '0').toString().replace(',', '.');
+                const diasNaCarteira = parseInt(diasStr) || 0;
+
+                if (!logradouro && !cidade && !cep) continue;
+
+                if (numPedido && pedidosRoteirizadosGlobal.has(numPedido)) {
+                    countIgnorados++;
+                    continue;
+                }
+
+                countValidos++;
+                let chaveClienteUnico = `${idCliente}_${razaoSocial}_${cep}_${logradouro}`.toUpperCase();
+
+                if (!mapaClientesPorChave[chaveClienteUnico]) {
+                    let enderecoCompleto = `${logradouro}, ${bairro ? bairro + ', ' : ''}${cidade} - ${ufEntrega} ${cep ? 'CEP: ' + cep : ''}`;
+
+                    mapaClientesPorChave[chaveClienteUnico] = {
+                        chaveUnica: chaveClienteUnico,
+                        razaoSocial: razaoSocial || 'Cliente Eternit',
+                        idCliente: idCliente,
+                        cep: cep,
+                        logradouro: logradouro,
+                        bairro: bairro,
+                        cidade: cidade,
+                        uf: ufEntrega,
+                        enderecoCompleto: enderecoCompleto,
+                        pedidos: []
+                    };
+                }
+
+                mapaClientesPorChave[chaveClienteUnico].pedidos.push({
+                    pedido: numPedido || ('P' + i),
+                    quantidade: quantidade,
+                    material: descMaterial || 'Produto Eternit',
+                    diasNaCarteira: diasNaCarteira,
+                    fechado: false
+                });
+            }
+
+            const listaClientes = Object.values(mapaClientesPorChave);
+            globalListaClientesCache = listaClientes;
+            const coordsTodas = await geocodificarTodos(listaClientes);
+
+            for (let idx = 0; idx < listaClientes.length; idx++) {
+                let clusterData = listaClientes[idx];
+                let coordBase = coordsTodas[idx];
+
+                if (locaisManuaisSalvos[clusterData.chaveUnica]) {
+                    clusterData.lat = locaisManuaisSalvos[clusterData.chaveUnica].lat;
+                    clusterData.lon = locaisManuaisSalvos[clusterData.chaveUnica].lon;
+                    clusterData.precisao = 'manual';
+                } else {
+                    clusterData.lat = coordBase.lat;
+                    clusterData.lon = coordBase.lon;
+                    clusterData.precisao = coordBase.precisao;
+                }
+            }
+
+            renderizarTabelaTabelas();
+
+            let clusterIdCounter = 1;
+            let bounds = [];
+
+            for (let idx = 0; idx < listaClientes.length; idx++) {
+                let clusterData = listaClientes[idx];
+
+                const chavePonto = clusterData.lat.toFixed(5) + ',' + clusterData.lon.toFixed(5);
+                const repetido = bounds.some(b => b[0].toFixed(5) + ',' + b[1].toFixed(5) === chavePonto);
+                let latFinal = clusterData.lat + (repetido ? (Math.random() - 0.5) * 0.0006 : 0);
+                let lonFinal = clusterData.lon + (repetido ? (Math.random() - 0.5) * 0.0006 : 0);
+
+                let totalQtd = clusterData.pedidos.reduce((sum, p) => sum + p.quantidade, 0);
+                let numPedidos = clusterData.pedidos.length;
+
+                let maxDiasNaCarteira = Math.max(...clusterData.pedidos.map(p => p.diasNaCarteira));
+                let corBolinha = obterCorPorDias(maxDiasNaCarteira);
+
+                let badgeHtml = numPedidos > 1 ? `<div class="cluster-badge-qtd">${numPedidos}</div>` : '';
+                let pesoArredondado = Math.round(totalQtd);
+                
+                let clusterHtml = `
+                    <div id="cluster-${clusterIdCounter}" class="cluster-marcador-container">
+                        ${badgeHtml}
+                        <div class="cluster-circulo-principal" style="background-color: ${corBolinha};">
+                            ${pesoArredondado}
+                        </div>
+                    </div>
+                `;
+
+                let customIcon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: clusterHtml,
+                    iconSize: [44, 44], iconAnchor: [22, 22]
+                });
+
+                let textoPrecisaoMap = {exata:'endereço exato',endereco:'endereço exato',cep:'pelo CEP',bairro:'centro do bairro',cidade:'centro da cidade',aproximada:'aproximada (⚠️ incorreta provável)', manual:'corrigido manualmente'};
+
+                let popupContent = `<div style="min-width: 260px; font-family: 'Inter', sans-serif;">
+                    <b style="font-size: 14px; color: #581c34;">${clusterData.razaoSocial}</b><br>
+                    <span style="font-size: 11px; color: #64748b;">Cód: ${clusterData.idCliente} | ${clusterData.enderecoCompleto}</span><br>
+                    <span style="font-size: 10px; font-weight: bold; color: ${clusterData.precisao === 'aproximada' ? '#d97706' : '#16a34a'};">📍 Precisão: ${textoPrecisaoMap[clusterData.precisao] || clusterData.precisao}</span>
+                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 6px 0;">
+                    <span style="font-size: 12px; font-weight: 600; color: #334155;">Total: ${numPedidos} pedido(s) | ${totalQtd.toFixed(1)} m³</span><br>`;
+                
+                clusterData.pedidos.forEach(p => {
+                    popupContent += `<div style="font-size: 11px; margin-top: 4px; border-left: 2px solid #581c34; padding-left: 6px;"><b>Ped:</b> ${p.pedido} (${p.quantidade} m³) — <i>${p.diasNaCarteira} dias na carteira</i><br><i style="color: #64748b;">${p.material}</i></div>`;
+                });
+                popupContent += `</div>`;
+
+                const marker = L.marker([latFinal, lonFinal], { icon: customIcon }).addTo(markersLayer);
+                marker.bindPopup(popupContent);
+
+                let objCluster = {
+                    id: clusterIdCounter++,
+                    marker: marker,
+                    latLng: L.latLng(latFinal, lonFinal),
+                    pedidos: clusterData.pedidos,
+                    totalQtd: totalQtd,
+                    clienteInfo: clusterData
+                };
+
+                marker.on('click', function() {
+                    if (modoManualAtivo) {
+                        alternarSelecaoClusterManual(objCluster);
+                    }
+                });
+
+                listaGlobalClusters.push(objCluster);
+                bounds.push([latFinal, lonFinal]);
+            }
+
+            document.getElementById('status-carregamento').innerText = `✅ ${listaGlobalClusters.length} clientes localizados com sucesso (${countValidos} pedidos pendentes). ${countIgnorados > 0 ? `(${countIgnorados} pedidos já roteirizados foram ocultados).` : ''}`;
+            if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50] });
+        }
+
+        function renderizarTabelaTabelas() {
+            let filtro = document.getElementById('filtro-precisao').value;
+            let tabelaHtml = '';
+
+            globalListaClientesCache.forEach(c => {
+                if (filtro === 'aproximada' && c.precisao !== 'aproximada') return;
+
+                c.pedidos.forEach(p => {
+                    tabelaHtml += `<tr id="tr-pedido-${p.pedido}">
+                        <td>${p.pedido}</td>
+                        <td>${c.idCliente}</td>
+                        <td>${c.razaoSocial}</td>
+                        <td>${c.logradouro}</td>
+                        <td><b>${c.cep}</b></td>
+                        <td>${c.cidade}/${c.uf}</td>
+                        <td>${p.quantidade}</td>
+                        <td><b>${p.diasNaCarteira} dias</b></td>
+                        <td>
+                            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                                <span style="font-size: 10px; font-weight: bold; color: ${c.precisao === 'aproximada' ? '#d97706' : '#16a34a'};">${c.precisao}</span>
+                                <div style="display: flex; gap: 4px; align-items: center; width: 100%; margin-top: 2px;">
+                                    <input type="text" id="tabela-lat-${c.chaveUnica}" value="${c.lat.toFixed(6)}" style="width: 90px; font-size: 11px; padding: 3px;" placeholder="Lat">
+                                    <input type="text" id="tabela-lng-${c.chaveUnica}" value="${c.lon.toFixed(6)}" style="width: 90px; font-size: 11px; padding: 3px;" placeholder="Lng">
+                                    <button onclick="salvarLocalizacaoTabela('${c.chaveUnica}')" style="background: var(--primary-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600;">Salvar</button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>`;
+                });
+            });
+
+            document.getElementById('tabela-dados').querySelector('tbody').innerHTML = tabelaHtml || `<tr><td colspan="9" style="text-align: center; color: #94a3b8;">Nenhum registro encontrado com este filtro.</td></tr>`;
+        }
+
+        function filtrarTabelaTabelas() {
+            renderizarTabelaTabelas();
+        }
+
+        function salvarLocalizacaoTabela(chaveUnica) {
+            let inputLat = document.getElementById(`tabela-lat-${chaveUnica}`);
+            let inputLng = document.getElementById(`tabela-lng-${chaveUnica}`);
+            if (!inputLat || !inputLng) return;
+
+            let lat = parseFloat(inputLat.value.replace(',', '.'));
+            let lng = parseFloat(inputLng.value.replace(',', '.'));
+
+            if (isNaN(lat) || isNaN(lng)) {
+                alert("⚠️ Valores inválidos para Latitude ou Longitude.");
+                return;
+            }
+
+            locaisManuaisSalvos[chaveUnica] = { lat: lat, lon: lng, precisao: 'manual' };
+            salvarNoLocalStorage();
+            alert("✅ Localização atualizada com sucesso!");
+
+            if (dadosBrutosUltimaPlanilha) {
+                processarLinhasPlanilha(dadosBrutosUltimaPlanilha);
+            }
+        }
+
+        function avaliarClustersNaArea(layer) {
+            clustersSelecionadosAtuais = [];
+            listaGlobalClusters.forEach(cluster => {
+                if(cluster.pedidos.every(p => p.fechado)) return;
+                let dentro = layer instanceof L.Polygon ? rayCastPoint(cluster.latLng, layer.getLatLngs()[0]) : layer.getBounds().contains(cluster.latLng);
+                if (dentro) clustersSelecionadosAtuais.push(cluster);
+            });
+
+            recalcularRotaEAtualizarInterface();
+        }
+
+        function recalcularRotaEAtualizarInterface() {
+            let volumeSelecionado = 0;
+            let pedidosNaRota = [];
+            let pontosRota = [origemMarker ? origemMarker.getLatLng() : L.latLng(-22.89, -47.22)];
+
+            listaGlobalClusters.forEach(cluster => {
+                let elBolinha = document.getElementById(`cluster-${cluster.id}`);
+                if (elBolinha) elBolinha.classList.remove('selecionado');
+                cluster.pedidos.forEach(p => {
+                    let tr = document.getElementById(`tr-pedido-${p.pedido}`);
+                    if(tr) tr.classList.remove('selecionado-tabela');
+                });
+            });
+
+            clustersSelecionadosAtuais.sort((a, b) => pontosRota[0].distanceTo(a.latLng) - pontosRota[0].distanceTo(b.latLng));
+
+            clustersSelecionadosAtuais.forEach((cluster) => {
+                let elBolinha = document.getElementById(`cluster-${cluster.id}`);
+                if (elBolinha) elBolinha.classList.add('selecionado');
+
+                cluster.pedidos.forEach(p => {
+                    if(!p.fechado) {
+                        volumeSelecionado += p.quantidade;
+                        pedidosNaRota.push(p.pedido);
+                        let tr = document.getElementById(`tr-pedido-${p.pedido}`);
+                        if(tr) tr.classList.add('selecionado-tabela');
+                    }
+                });
+                pontosRota.push(cluster.latLng);
+            });
+
+            rotaLinhaLayer.clearLayers();
+            if (pontosRota.length > 1) {
+                let coordsString = pontosRota.map(p => `${p.lng},${p.lat}`).join(';');
+                fetch(`https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.routes && data.routes.length > 0) {
+                            L.polyline(data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]), { color: '#0284c7', weight: 5, opacity: 0.85 }).addTo(rotaLinhaLayer);
+                        } else { L.polyline(pontosRota, { color: '#0284c7', weight: 4 }).addTo(rotaLinhaLayer); }
+                    })
+                    .catch(() => { L.polyline(pontosRota, { color: '#0284c7', weight: 4 }).addTo(rotaLinhaLayer); });
+            }
+
+            const btnAbrirModal = document.getElementById('btn-abrir-modal');
+            const btnCancelar = document.getElementById('btn-cancelar-selecao');
+
+            if (clustersSelecionadosAtuais.length > 0) {
+                btnAbrirModal.removeAttribute('style');
+                btnAbrirModal.disabled = false;
+                btnCancelar.style.display = 'block';
+            } else {
+                btnAbrirModal.style.opacity = '0.5';
+                btnAbrirModal.style.cursor = 'not-allowed';
+                btnAbrirModal.disabled = true;
+                btnCancelar.style.display = 'none';
+            }
+
+            document.getElementById('detalhes-rota-selecionada').innerHTML = 
+                `Clientes Selecionados: <b>${clustersSelecionadosAtuais.length}</b> | Pedidos na Rota: [<b>${pedidosNaRota.join(', ')}</b>] | Volume: <b>${volumeSelecionado.toFixed(1)} m³</b>`;
+        }
+
+        function abrirModalVeiculo() {
+            if(clustersSelecionadosAtuais.length === 0) return;
+            let volTotal = 0;
+            clustersSelecionadosAtuais.forEach(c => c.pedidos.forEach(p => { if(!p.fechado) volTotal += p.quantidade; }));
+            document.getElementById('modal-lbl-volume').innerText = volTotal.toFixed(1) + ' m³';
+            
+            let hoje = new Date().toISOString().split('T')[0];
+            document.getElementById('modal-data-carregamento').value = hoje;
+
+            atualizarModalCapacidade();
+            document.getElementById('modal-veiculo').style.display = 'flex';
+        }
+
+        function fecharModalVeiculo() { document.getElementById('modal-veiculo').style.display = 'none'; }
+
+        function atualizarModalCapacidade() {
+            let capMax = parseFloat(document.getElementById('modal-tipo-caminhao').value);
+            let vol = 0;
+            clustersSelecionadosAtuais.forEach(c => c.pedidos.forEach(p => { if(!p.fechado) vol += p.quantidade; }));
+            let status = document.getElementById('modal-status-capacidade');
+            status.innerHTML = vol > capMax ? `<span style="color: #ef4444;">⚠️ Excede capacidade (${capMax} m³)!</span>` : `<span style="color: #10b981;">✔ Carga dentro da capacidade (${((vol/capMax)*100).toFixed(1)}%).</span>`;
+        }
+
+        function confirmarFechamentoRota() {
+            let tipoVeiculo = document.getElementById('modal-tipo-caminhao').selectedOptions[0].getAttribute('data-tipo');
+            let placa = document.getElementById('modal-placa-caminhao').value;
+            let dataCarregamentoSelecionada = document.getElementById('modal-data-carregamento').value;
+
+            if (!dataCarregamentoSelecionada) {
+                alert("⚠️ Por favor, informe a data de carregamento.");
+                return;
+            }
+            
+            let selectFabrica = document.getElementById('fabrica-select');
+            let fabricaNome = selectFabrica.selectedOptions[0].text;
+            let fabricaId = selectFabrica.value;
+
+            let rotaId = 'ROTA-' + Math.floor(1000 + Math.random() * 9000);
+
+            let idsPedidos = [];
+            let volTotal = 0;
+            let clientesNaRota = [];
+            let cidadesDestinoSet = new Set();
+
+            clustersSelecionadosAtuais.forEach(cluster => {
+                cidadesDestinoSet.add(cluster.clienteInfo.cidade);
+                let pedidosCliente = [];
+                cluster.pedidos.forEach(p => {
+                    if(!p.fechado) {
+                        p.fechado = true;
+                        p.rotaId = rotaId;
+                        idsPedidos.push(p.pedido);
+                        pedidosRoteirizadosGlobal.add(p.pedido);
+                        volTotal += p.quantidade;
+                        pedidosCliente.push(p);
+                    }
+                });
+
+                clientesNaRota.push({
+                    nome: cluster.clienteInfo.razaoSocial,
+                    codigo: cluster.clienteInfo.idCliente,
+                    endereco: cluster.clienteInfo.enderecoCompleto,
+                    pedidos: pedidosCliente
+                });
+            });
+
+            let destinoFinalTexto = Array.from(cidadesDestinoSet).join(', ');
+
+            rotasPlanejadasHistorico.push({ 
+                id: rotaId, 
+                fabricaKey: fabricaId,
+                fabrica: fabricaNome, 
+                destinoFinal: destinoFinalTexto,
+                veiculo: `${tipoVeiculo} (${placa})`, 
+                qtd: idsPedidos.length, 
+                volume: volTotal.toFixed(1), 
+                sequencia: idsPedidos.join(' ➔ '),
+                clientes: clientesNaRota,
+                transportadora: '',
+                statusRota: 'Pendente carregamento',
+                dataCriacao: dataCarregamentoSelecionada
+            });
+
+            salvarNoLocalStorage();
+
+            if (dadosBrutosUltimaPlanilha) {
+                processarLinhasPlanilha(dadosBrutosUltimaPlanilha);
+            } else {
+                clustersSelecionadosAtuais.forEach(cluster => {
+                    if(cluster.marker) markersLayer.removeLayer(cluster.marker);
+                });
+            }
+
+            rotaLinhaLayer.clearLayers();
+            drawnItems.clearLayers();
+            clustersSelecionadosAtuais = [];
+            document.getElementById('detalhes-rota-selecionada').innerText = 'Rota fechada com sucesso!';
+            document.getElementById('btn-abrir-modal').style.opacity = '0.5';
+            document.getElementById('btn-abrir-modal').disabled = true;
+            document.getElementById('btn-cancelar-selecao').style.display = 'none';
+
+            fecharModalVeiculo();
+            alert(`✅ Rota ${rotaId} fechada com sucesso para o dia ${dataCarregamentoSelecionada.split('-').reverse().join('/')}!`);
+        }
+
+        function desfazerRota(rotaId) {
+            let index = rotasPlanejadasHistorico.findIndex(r => r.id === rotaId);
+            if(index === -1) return;
+
+            let rotaRemovida = rotasPlanejadasHistorico[index];
+            
+            rotaRemovida.clientes.forEach(c => {
+                c.pedidos.forEach(p => {
+                    pedidosRoteirizadosGlobal.delete(p.pedido);
+                });
+            });
+
+            rotasPlanejadasHistorico.splice(index, 1);
+            salvarNoLocalStorage();
+            atualizarTabelaPlanejamentos();
+
+            if (dadosBrutosUltimaPlanilha) {
+                processarLinhasPlanilha(dadosBrutosUltimaPlanilha);
+            }
+
+            alert(`🔄 Rota ${rotaId} desfeita. Os pedidos retornaram para a carteira ativa e para o mapa.`);
+        }
+
+        function atualizarTransportadora(rotaId, valor) {
+            let rota = rotasPlanejadasHistorico.find(r => r.id === rotaId);
+            if (rota) {
+                rota.transportadora = valor;
+                salvarNoLocalStorage();
+            }
+        }
+
+        function atualizarStatusRota(rotaId, valor) {
+            let rota = rotasPlanejadasHistorico.find(r => r.id === rotaId);
+            if (rota) {
+                rota.statusRota = valor;
+                salvarNoLocalStorage();
+                atualizarTabelaPlanejamentos();
+            }
+        }
+
+        function toggleDetalhesRota(rotaId) {
+            let linhaDetalhes = document.getElementById(`detalhes-${rotaId}`);
+            if (linhaDetalhes) linhaDetalhes.classList.toggle('ativo');
+        }
+
+        function limparFiltroData() {
+            document.getElementById('filtro-data-calendario').value = '';
+            atualizarTabelaPlanejamentos();
+        }
+
+        function gerarRomaneioPDF(rotaId) {
+            let rota = rotasPlanejadasHistorico.find(r => r.id === rotaId);
+            if (!rota) return;
+
+            let agora = new Date();
+            let dataStr = agora.toLocaleDateString('pt-BR');
+
+            let conteudoHTML = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Romaneio ${rota.id}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; font-size: 12px; color: #000; margin: 20px; }
+                        h2 { margin: 0 0 5px 0; font-size: 16px; }
+                        .header-box { border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; }
+                        .cliente-box { border: 1px solid #000; padding: 10px; margin-bottom: 12px; border-radius: 4px; }
+                        .cliente-header { font-weight: bold; margin-bottom: 5px; font-size: 13px; }
+                        .assinatura-box { margin-top: 30px; display: flex; justify-content: space-between; }
+                        .linha-assinatura { width: 250px; border-top: 1px solid #000; text-align: center; padding-top: 4px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header-box">
+                        <h2>Romaneio n ${rota.id} - ${dataStr} - ${rota.fabrica.toUpperCase()}</h2>
+                        <div><b>Peso/% ocupação:</b> ${parseFloat(rota.volume) * 250} kg / ${((parseFloat(rota.volume)/14500)*100).toFixed(2)}%</div>
+                        <div><b>Qtd. de Itens:</b> ${rota.qtd * 110}.00</div>
+                        <div><b>Motorista:</b> Motorista Padrão</div>
+                        <div><b>Placa:</b> ${rota.veiculo}</div>
+                        <div><b>Distância total:</b> 468,23 km</div>
+                    </div>
+            `;
+
+            let seq = 1;
+            rota.clientes.forEach(c => {
+                let pIds = c.pedidos.map(p => p.pedido).join(', ');
+                let totalQtdCli = c.pedidos.reduce((sum, p) => sum + p.quantidade, 0);
+
+                conteudoHTML += `
+                    <div class="cliente-box">
+                        <div class="cliente-header">ENTREGA</div>
+                        <div><b>Cliente:</b> ${c.codigo} - ${c.nome}</div>
+                        <div><b>Pedidos:</b> ${pIds}</div>
+                        <div><b>Endereço:</b> ${c.endereco}</div>
+                        <div><b>Cidade:</b> ${c.endereco.split('-')[0]} | <b>Qtd. Itens:</b> ${totalQtdCli * 50}.00</div>
+                        <div><b>Chegada Prevista:</b> ${dataStr} 08:33 | <b>Saída Prevista:</b> ${dataStr} 08:33</div>
+                        <div class="assinatura-box">
+                            <div class="linha-assinatura">Carimbo/Assinatura</div>
+                            <div class="linha-assinatura">Seq.: ${seq++}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            conteudoHTML += `</body></html>`;
+
+            let iframe = document.createElement('iframe');
+            iframe.style.position = 'fixed';
+            iframe.style.width = '0px';
+            iframe.style.height = '0px';
+            iframe.style.border = 'none';
+            document.body.appendChild(iframe);
+
+            let doc = iframe.contentWindow.document;
+            doc.open();
+            doc.write(conteudoHTML);
+            doc.close();
+
+            setTimeout(() => {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+                setTimeout(() => { document.body.removeChild(iframe); }, 1000);
+            }, 500);
+        }
+
+        function atualizarTabelaPlanejamentos() {
+            let fabricaAtiva = document.getElementById('fabrica-select').value;
+            let dataFiltro = document.getElementById('filtro-data-calendario').value;
+            let tbody = document.getElementById('tabela-planejamentos').querySelector('tbody');
+            
+            let rotasFiltradas = rotasPlanejadasHistorico.filter(r => r.fabricaKey === fabricaAtiva);
+
+            if (dataFiltro) {
+                rotasFiltradas = rotasFiltradas.filter(r => r.dataCriacao === dataFiltro);
+            }
+
+            if (rotasFiltradas.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #94a3b8;">Nenhuma rota encontrada para esta fábrica e data.</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            rotasFiltradas.forEach(r => {
+                let badgeCarregada = (r.statusRota === 'Carregado') ? `<span class="badge-carregada">✔ Rota carregada</span>` : '';
+
+                let detalhesHtml = `<div style="padding: 14px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; margin: 8px 0;">
+                    <div style="display: flex; gap: 20px; margin-bottom: 12px; align-items: center; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 220px;">
+                            <label>Transportadora:</label>
+                            <input type="text" value="${r.transportadora || ''}" placeholder="Nome da Transportadora" onchange="atualizarTransportadora('${r.id}', this.value)">
+                        </div>
+                        <div style="width: 240px;">
+                            <label>Status da Rota:</label>
+                            <select onchange="atualizarStatusRota('${r.id}', this.value)">
+                                <option value="Pendente carregamento" ${r.statusRota === 'Pendente carregamento' ? 'selected' : ''}>Pendente carregamento</option>
+                                <option value="Carregando" ${r.statusRota === 'Carregando' ? 'selected' : ''}>Carregando</option>
+                                <option value="Carregado" ${r.statusRota === 'Carregado' ? 'selected' : ''}>Carregado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <b style="color: #581c34; font-size: 13px;">📦 Clientes e Produtos Alocados na Rota ${r.id}:</b>
+                    <ul style="margin: 5px 0 0 20px; padding: 0; font-size: 12px;">`;
+                
+                r.clientes.forEach(c => {
+                    detalhesHtml += `<li style="margin-bottom: 6px;"><b>${c.nome}</b> (Cód: ${c.codigo}) — <i>${c.endereco}</i>`;
+                    c.pedidos.forEach(p => {
+                        detalhesHtml += `<div style="color: #475569; margin-left: 15px;">• Pedido <b>${p.pedido}</b> | Produto: <b>${p.material}</b> | Qtd: <b>${p.quantidade} m³</b></div>`;
+                    });
+                    detalhesHtml += `</li>`;
+                });
+                detalhesHtml += `</ul></div>`;
+
+                html += `<tr>
+                    <td><b>${r.id}</b> ${badgeCarregada}</td>
+                    <td>${r.fabrica}</td>
+                    <td><b>${r.destinoFinal}</b></td>
+                    <td>${r.veiculo}</td>
+                    <td>${r.qtd} pedidos</td>
+                    <td>${r.volume} m³</td>
+                    <td>
+                        <button class="btn-detalhes" onclick="toggleDetalhesRota('${r.id}')">🔍 Detalhes</button>
+                        <button class="btn-pdf" onclick="gerarRomaneioPDF('${r.id}')">📄 PDF</button>
+                        <button class="btn-desfazer" onclick="desfazerRota('${r.id}')">Desfazer</button>
+                    </td>
+                </tr>
+                <tr id="detalhes-${r.id}" class="detalhes-rota-linha">
+                    <td colspan="7">${detalhesHtml}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function rayCastPoint(point, polygon) {
+            let x = point.lat, y = point.lng, inside = false;
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                let xi = polygon[i].lat, yi = polygon[i].lng, xj = polygon[j].lat, yj = polygon[j].lng;
+                if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+            }
+            return inside;
+        }
+    </script>
+</body>
+</html>
